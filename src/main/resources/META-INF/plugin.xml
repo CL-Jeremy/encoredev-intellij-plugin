@@ -52,6 +52,8 @@
                 id="dev.encore.intellij.settings.Settings"
                 displayName="Encore"/>
         />
+
+        <lang.inspectionSuppressor language="go" implementationClass="dev.encore.intellij.inspections.ApiUnusedSuppressor"/>
     </extensions>
 
     <extensions defaultExtensionNs="com.goide">

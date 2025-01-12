@@ -1,37 +1,37 @@
 package dev.encore.intellij.annotators
 
 import com.goide.highlighting.GoSyntaxHighlightingColors
+import com.goide.psi.GoFunctionDeclaration
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.Annotator
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.editor.DefaultLanguageHighlighterColors
-import com.intellij.openapi.editor.markup.GutterIconRenderer
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
+import com.intellij.psi.util.PsiTreeUtil
 
 class ApiDecls : Annotator {
     override fun annotate(element: PsiElement, holder: AnnotationHolder) {
-        // If it's not a comment and doesn't start with "//encore:", return
-        // as we're not interested in it
-        if (element !is PsiComment) {
+        // If it's not a comment, doesn't start with "//encore:" or is not
+        // followed by a func definition, return as we're not interested in it
+        if (element !is PsiComment || PsiTreeUtil.skipWhitespacesForward(element) !is GoFunctionDeclaration) {
             return
         }
         val comment: PsiComment = element
-        if (!comment.text.startsWith(API_DECL_PREFIX)) {
+
+        // Parse the comment. Return if prefix is not known to us
+        val (prefix, cfg, args) = parseApiAnnotation(comment)
+        if (cfg == null) {
             return
         }
-        val parts = comment.text.removePrefix("//").split(" ")
-        if (parts.isEmpty() || !PREFIXES.containsKey(parts[0]) ) {
-            return
-        }
 
-        val cfg: DeclCfg = PREFIXES[parts[0]]!!
+        // Skip the initial "//"
+        val startOffset = comment.textRange.startOffset + 2
 
-
-        // Highlight the "//encore:" part of the comment as a comment keyword
-        val directiveRange = TextRange.from(comment.textRange.startOffset + 2, parts[0].length)
+        // Highlight the "encore:" part of the comment as a comment keyword
+        val directiveRange = TextRange.from(startOffset, prefix.length)
         holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
             .range(directiveRange)
             .textAttributes(GoSyntaxHighlightingColors.COMMENT_KEYWORD)
@@ -39,17 +39,17 @@ class ApiDecls : Annotator {
             .create()
 
         // Highlight the rest of the comment
-        var lastIndex = comment.textRange.startOffset + parts[0].length + 3
+        var lastOffset = startOffset + prefix.length + 1
         val used = mutableSetOf<String>()
 
-        for (part in parts.drop(1)) {
+        for (part in args) {
             if (part.contains('=')) {
                 // It's a field
                 val splitPoint = part.indexOf('=')
                 val fieldName = part.take(splitPoint)
                 val fieldValue = part.drop(splitPoint + 1)
-                val nameRange = TextRange.from(lastIndex, splitPoint)
-                val valueRange = TextRange.from(lastIndex + splitPoint + 1, fieldValue.length)
+                val nameRange = TextRange.from(lastOffset, splitPoint)
+                val valueRange = TextRange.from(lastOffset + splitPoint + 1, fieldValue.length)
 
 
                 // Check it's not already used once
@@ -74,13 +74,13 @@ class ApiDecls : Annotator {
                         .create()
                 }
 
-                highlightFieldValue(holder, cfg, fieldName, fieldValue, valueRange)
+                highlightFieldValue(holder, fieldName, fieldValue, valueRange)
 
                 used.add(fieldName)
 
             } else {
                 // It's an option
-                val partRange = TextRange.from(lastIndex, part.length)
+                val partRange = TextRange.from(lastOffset, part.length)
 
                 // Check it's not already used once
                 if (used.contains(part)) {
@@ -106,11 +106,11 @@ class ApiDecls : Annotator {
                 used.add(part)
             }
 
-            lastIndex += part.length + 1
+            lastOffset += part.length + 1
         }
     }
 
-    private fun highlightFieldValue(holder: AnnotationHolder, cfg: DeclCfg, fieldName: String, fieldValue: String, range: TextRange) {
+    private fun highlightFieldValue(holder: AnnotationHolder, fieldName: String, fieldValue: String, range: TextRange) {
         if (fieldName == "path" && (fieldValue.contains(":") || fieldValue.contains("*"))) {
             // highlight each segment starting with ":" as a different colour
             var lastIndex = range.startOffset
@@ -182,6 +182,19 @@ class ApiDecls : Annotator {
                 arrayOf("target"),
             )
         )
+
+        fun isApiAnnotation(comment: PsiComment) = parseApiAnnotation(comment).second != null
+
+        private fun parseApiAnnotation(comment: PsiComment): Triple<String, DeclCfg?, List<String>> {
+            val text = comment.text
+            if (!text.startsWith(API_DECL_PREFIX)) {
+                return Triple("", null, emptyList())
+            }
+            val parts = text.removePrefix("//").split(" ")
+            val prefix = parts.getOrNull(0) ?: ""
+
+            return Triple(prefix, PREFIXES[prefix], parts.drop(1))
+        }
     }
 }
 
