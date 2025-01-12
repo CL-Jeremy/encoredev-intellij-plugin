@@ -156,46 +156,44 @@ class ApiDecls : Annotator {
                 .create()
         }
     }
+}
 
-    companion object {
-        private const val API_DECL_PREFIX = "//encore:"
+private const val API_DECL_PREFIX = "//encore:"
 
-        private val PREFIXES = mapOf(
-            "encore:api" to DeclCfg(
-                "This defines an API endpoint",
-                arrayOf("raw", "public", "private", "auth"),
-                arrayOf("path", "method"),
-            ),
-            "encore:service" to DeclCfg(
-                "This defines a service singleton which will be started up along side your service",
-                arrayOf(),
-                arrayOf(),
-            ),
-            "encore:authhandler" to DeclCfg(
-                "This defines an authentication handler which will be used to authenticate requests for your whole application.",
-                arrayOf(),
-                arrayOf(),
-            ),
-            "encore:middleware" to DeclCfg(
-                "This defines a middleware which will be used to process requests",
-                arrayOf("global"),
-                arrayOf("target"),
-            )
-        )
+private val PREFIXES = mapOf(
+    "encore:api" to DeclCfg(
+        "This defines an API endpoint",
+        arrayOf("raw", "public", "private", "auth"),
+        arrayOf("path", "method"),
+    ),
+    "encore:service" to DeclCfg(
+        "This defines a service singleton which will be started up along side your service",
+        arrayOf(),
+        arrayOf(),
+    ),
+    "encore:authhandler" to DeclCfg(
+        "This defines an authentication handler which will be used to authenticate requests for your whole application.",
+        arrayOf(),
+        arrayOf(),
+    ),
+    "encore:middleware" to DeclCfg(
+        "This defines a middleware which will be used to process requests",
+        arrayOf("global"),
+        arrayOf("target"),
+    )
+)
 
-        fun isApiAnnotation(comment: PsiComment) = parseApiAnnotation(comment).second != null
+fun isApiAnnotation(comment: PsiComment) = parseApiAnnotation(comment).second != null
 
-        private fun parseApiAnnotation(comment: PsiComment): Triple<String, DeclCfg?, List<String>> {
-            val text = comment.text
-            if (!text.startsWith(API_DECL_PREFIX)) {
-                return Triple("", null, emptyList())
-            }
-            val parts = text.removePrefix("//").split(" ")
-            val prefix = parts.getOrNull(0) ?: ""
-
-            return Triple(prefix, PREFIXES[prefix], parts.drop(1))
-        }
+private fun parseApiAnnotation(comment: PsiComment): Triple<String, DeclCfg?, List<String>> {
+    val text = comment.text
+    if (!text.startsWith(API_DECL_PREFIX)) {
+        return Triple("", null, emptyList())
     }
+    val parts = text.removePrefix("//").split(" ")
+    val prefix = parts.getOrNull(0) ?: ""
+
+    return Triple(prefix, PREFIXES[prefix], parts.drop(1))
 }
 
 data class DeclCfg(

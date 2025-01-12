@@ -6,12 +6,9 @@ import com.intellij.codeInspection.SuppressQuickFix
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
-import dev.encore.intellij.annotators.ApiDecls.Companion.isApiAnnotation
+import dev.encore.intellij.annotators.isApiAnnotation
 
 class ApiUnusedSuppressor : InspectionSuppressor {
-    companion object {
-        private const val TOOL_ID = "GoUnusedExportedFunction"
-    }
 
     override fun isSuppressedFor(element: PsiElement, toolId: String): Boolean {
         if (element !is GoFunctionDeclaration || toolId != TOOL_ID) {
@@ -26,5 +23,6 @@ class ApiUnusedSuppressor : InspectionSuppressor {
     }
 
     override fun getSuppressActions(element: PsiElement?, toolId: String) = SuppressQuickFix.EMPTY_ARRAY!!
-
 }
+
+private const val TOOL_ID = "GoUnusedExportedFunction"
